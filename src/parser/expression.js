@@ -418,7 +418,7 @@ export default class ExpressionParser extends LValParser {
           const oldInDoExpression = this.state.inDoExpression;
           this.state.inDoExpression = true;
           //node.body = this.parseBlock();
-          node.body = this.parseStatement();
+          node.body = this.parseBlock(false);
           this.state.inDoExpression = oldInDoExpression;
           return this.finishNode(node, "DoExpression");
 
@@ -566,6 +566,7 @@ export default class ExpressionParser extends LValParser {
         }
 
       default:
+        debugger;
         throw this.unexpected();
     }
   }

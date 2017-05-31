@@ -73,70 +73,68 @@ export default class StatementParser extends ExpressionParser {
     // start with. Many are trivial to parse, some require a bit of
     // complexity.
 
-    switch (starttype) {
-      // $FlowFixMe
-      case tt._break: case tt._continue: return this.parseBreakContinueStatement(node, starttype.keyword);
-      case tt._debugger: return this.parseDebuggerStatement(node);
-      case tt._do: return this.parseDoStatement(node);
-      case tt._for: return this.parseForStatement(node);
-      case tt._function:
-        if (!declaration) this.unexpected();
-        return this.parseFunctionStatement(node);
+    if (starttype === tt.semi)
+        return this.parseEmptyStatement(node);
 
-      case tt._class:
-        if (!declaration) this.unexpected();
-        return this.parseClass(node, true);
+    if (!this.state.inDoExpression)
+        switch (starttype) {
+          // $FlowFixMe
+          case tt._break: case tt._continue: return this.parseBreakContinueStatement(node, starttype.keyword);
+          case tt._debugger: return this.parseDebuggerStatement(node);
+          case tt._do: return this.parseDoStatement(node);
+          case tt._for: return this.parseForStatement(node);
+          case tt._function:
+            if (!declaration) this.unexpected();
+            return this.parseFunctionStatement(node);
 
-      case tt._if: return this.parseIfStatement(node);
+          case tt._class:
+            if (!declaration) this.unexpected();
+            return this.parseClass(node, true);
 
-      case tt._return:
-            if(!this.state.inDoExpression)
-                return this.parseReturnStatement(node);
-            break;
+          case tt._if: return this.parseIfStatement(node);
+          case tt._return: return this.parseReturnStatement(node);
+          case tt._switch: return this.parseSwitchStatement(node);
+          case tt._throw: return this.parseThrowStatement(node);
+          case tt._try: return this.parseTryStatement(node);
 
-      case tt._switch: return this.parseSwitchStatement(node);
-      case tt._throw: return this.parseThrowStatement(node);
-      case tt._try: return this.parseTryStatement(node);
+          case tt._let:
+          case tt._const:
+            if (!declaration) this.unexpected(); // NOTE: falls through to _var
 
-      case tt._let:
-      case tt._const:
-        if (!declaration) this.unexpected(); // NOTE: falls through to _var
+          case tt._var:
+            return this.parseVarStatement(node, starttype);
 
-      case tt._var:
-        return this.parseVarStatement(node, starttype);
+          case tt._while: return this.parseWhileStatement(node);
+          case tt._with: return this.parseWithStatement(node);
+          case tt.braceL: return this.parseBlock();
+          case tt._export:
+          case tt._import:
+            if (this.hasPlugin("dynamicImport") && this.lookahead().type === tt.parenL) break;
 
-      case tt._while: return this.parseWhileStatement(node);
-      case tt._with: return this.parseWithStatement(node);
-      case tt.braceL: return this.parseBlock();
-      case tt.semi: return this.parseEmptyStatement(node);
-      case tt._export:
-      case tt._import:
-        if (this.hasPlugin("dynamicImport") && this.lookahead().type === tt.parenL) break;
+            if (!this.options.allowImportExportEverywhere) {
+              if (!topLevel) {
+                this.raise(this.state.start, "'import' and 'export' may only appear at the top level");
+              }
 
-        if (!this.options.allowImportExportEverywhere) {
-          if (!topLevel) {
-            this.raise(this.state.start, "'import' and 'export' may only appear at the top level");
-          }
+              if (!this.inModule) {
+                this.raise(this.state.start, "'import' and 'export' may appear only with 'sourceType: module'");
+              }
+            }
+            return starttype === tt._import ? this.parseImport(node) : this.parseExport(node);
 
-          if (!this.inModule) {
-            this.raise(this.state.start, "'import' and 'export' may appear only with 'sourceType: module'");
-          }
+          case tt.name:
+            if (this.state.value === "async") {
+              // peek ahead and see if next token is a function
+              const state = this.state.clone();
+              this.next();
+              if (this.match(tt._function) && !this.canInsertSemicolon()) {
+                this.expect(tt._function);
+                return this.parseFunction(node, true, false, true);
+              } else {
+                this.state = state;
+              }
+            }
         }
-        return starttype === tt._import ? this.parseImport(node) : this.parseExport(node);
-
-      case tt.name:
-        if (this.state.value === "async") {
-          // peek ahead and see if next token is a function
-          const state = this.state.clone();
-          this.next();
-          if (this.match(tt._function) && !this.canInsertSemicolon()) {
-            this.expect(tt._function);
-            return this.parseFunction(node, true, false, true);
-          } else {
-            this.state = state;
-          }
-        }
-    }
 
     // If the statement does not start with a statement keyword or a
     // brace, it's an ExpressionStatement or LabeledStatement. We
