@@ -407,6 +407,12 @@ export default class Tokenizer extends LocationParser {
       size = 2;
     }
 
+    if (code === 60 && next === 45) {
+      // <-
+      size = 2;
+      return this.finishOp(tt.bind, size);
+    }
+
     return this.finishOp(tt.relational, size);
   }
 

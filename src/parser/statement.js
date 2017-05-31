@@ -88,7 +88,12 @@ export default class StatementParser extends ExpressionParser {
         return this.parseClass(node, true);
 
       case tt._if: return this.parseIfStatement(node);
-      case tt._return: return this.parseReturnStatement(node);
+
+      case tt._return:
+            if(!this.state.inDoExpression)
+                return this.parseReturnStatement(node);
+            break;
+
       case tt._switch: return this.parseSwitchStatement(node);
       case tt._throw: return this.parseThrowStatement(node);
       case tt._try: return this.parseTryStatement(node);
@@ -140,6 +145,18 @@ export default class StatementParser extends ExpressionParser {
     // Identifier node, we switch to interpreting it as a label.
     const maybeName = this.state.value;
     const expr = this.parseExpression();
+
+    if(this.state.type.isBind) {
+      if (expr.type !== "Identifier" || !this.state.inDoExpression)
+            return this.unexpected();
+
+      const node = this.startNode();
+      node.operator = this.state.value;
+      node.left = expr;
+      this.next();
+      node.right = this.parseExpression();
+      return this.finishNode(node, "MBindStatement");
+    }
 
     if (starttype === tt.name && expr.type === "Identifier" && this.eat(tt.colon)) {
       return this.parseLabeledStatement(node, maybeName, expr);
@@ -298,7 +315,7 @@ export default class StatementParser extends ExpressionParser {
   }
 
   parseReturnStatement(node: N.ReturnStatement): N.ReturnStatement {
-    if (!this.state.inFunction && !this.options.allowReturnOutsideFunction) {
+    if ((!this.state.inFunction && !this.options.allowReturnOutsideFunction) && !this.state.inDoExpression) {
       this.raise(this.state.start, "'return' outside of function");
     }
 
@@ -507,6 +524,13 @@ export default class StatementParser extends ExpressionParser {
 
       parsedNonDirective = true;
       body.push(stmt);
+    }
+
+    if (this.state.inDoExpression) {
+        // DIRTY! TODO: cleanup! Wrong position
+        const lastStatement = body[body.length - 1]; // Last one
+        if (lastStatement.type === "MBindStatement")
+            this.unexpected();
     }
 
     if (oldStrict === false) {

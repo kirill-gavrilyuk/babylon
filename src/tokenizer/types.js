@@ -22,6 +22,7 @@ const beforeExpr = true;
 const startsExpr = true;
 const isLoop = true;
 const isAssign = true;
+const isBind = true;
 const prefix = true;
 const postfix = true;
 
@@ -33,6 +34,7 @@ type TokenOptions = {
   rightAssociative?: boolean;
   isLoop?: boolean;
   isAssign?: boolean;
+  isBind?: boolean;
   prefix?: boolean;
   postfix?: boolean;
   binop?: ?number;
@@ -46,6 +48,7 @@ export class TokenType {
   rightAssociative: boolean;
   isLoop: boolean;
   isAssign: boolean;
+  isBind: boolean;
   prefix: boolean;
   postfix: boolean;
   binop: ?number;
@@ -59,6 +62,7 @@ export class TokenType {
     this.rightAssociative = !!conf.rightAssociative;
     this.isLoop = !!conf.isLoop;
     this.isAssign = !!conf.isAssign;
+    this.isBind = !!conf.isBind;
     this.prefix = !!conf.prefix;
     this.postfix = !!conf.postfix;
     this.binop = conf.binop || null;
@@ -125,6 +129,7 @@ export const types: { [name: string]: TokenType } = {
   // in AssignmentExpression nodes.
 
   eq: new TokenType("=", { beforeExpr, isAssign }),
+  bind: new TokenType("<-", { beforeExpr, isBind }),
   assign: new TokenType("_=", { beforeExpr, isAssign }),
   incDec: new TokenType("++/--", { prefix, postfix, startsExpr }),
   prefix: new TokenType("prefix", { beforeExpr, prefix, startsExpr }),

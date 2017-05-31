@@ -20,6 +20,7 @@ export default class State {
 
     this.inMethod =
       this.inFunction =
+      this.inDoExpression =
       this.inGenerator =
       this.inAsync =
       this.inPropertyName =
