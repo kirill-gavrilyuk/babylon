@@ -122,7 +122,7 @@ export default class ExpressionParser extends LValParser {
     if (this.state.type.isAssign) {
       // TODO: think twice!
       if (this.state.inDoExpression)
-            return this.unexpected();
+        return this.unexpected();
 
       const node = this.startNodeAt(startPos, startLoc);
       node.operator = this.state.value;
@@ -412,23 +412,23 @@ export default class ExpressionParser extends LValParser {
 
     switch (this.state.type) {
       case tt._do:
-          node = this.startNode();
-          this.next();
-          node.monad = this.parseExpression();
-          const oldInDoExpression = this.state.inDoExpression;
-          this.state.inDoExpression = true;
-          //node.body = this.parseBlock();
-          node.body = this.parseBlock(false);
-          this.state.inDoExpression = oldInDoExpression;
-          return this.finishNode(node, "DoExpression");
+        node = this.startNode();
+        this.next();
+        node.monad = this.parseExpression();
+        const oldInDoExpression = this.state.inDoExpression;
+        this.state.inDoExpression = true;
+        //node.body = this.parseBlock();
+        node.body = this.parseBlock(false);
+        this.state.inDoExpression = oldInDoExpression;
+        return this.finishNode(node, "DoExpression");
 
       case tt._return:
-          if (!this.state.inDoExpression)
-                return this.unexpected();
-          node = this.startNode();
-          this.next();
-          node.argument = this.parseExpression();
-          return this.finishNode(node, "ReturnExpression");
+        if (!this.state.inDoExpression)
+          return this.unexpected();
+        node = this.startNode();
+        this.next();
+        node.argument = this.parseExpression();
+        return this.finishNode(node, "ReturnExpression");
 
       case tt._super:
         if (
