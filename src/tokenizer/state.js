@@ -76,6 +76,7 @@ export default class State {
 
   // Flags to track whether we are in a function, a generator.
   inFunction: boolean;
+  inDoExpression: boolean;
   inGenerator: boolean;
   inMethod: boolean | N.MethodKind;
   inAsync: boolean;

@@ -525,10 +525,13 @@ export default class StatementParser extends ExpressionParser {
     }
 
     if (this.state.inDoExpression) {
-        // DIRTY! TODO: cleanup! Wrong position
-        const lastStatement = body[body.length - 1]; // Last one
-        if (lastStatement.type === "MBindStatement")
-            this.unexpected();
+        if (body.length === 0)
+            this.unexpected(this.state.start, "DoExpression's body can not be empty")
+
+        const nonEmptyStatements = body.filter(statement => statement.type !== "EmptyStatement")
+        const lastStatement = nonEmptyStatements[nonEmptyStatements.length - 1];
+        if (lastStatement.type !== "ExpressionStatement")
+            this.unexpected(lastStatement.start, "DoExpression's body should end with expression");
     }
 
     if (oldStrict === false) {

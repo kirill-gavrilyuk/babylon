@@ -424,7 +424,7 @@ export default class ExpressionParser extends LValParser {
 
       case tt._return:
           if (!this.state.inDoExpression)
-                return this.unexprected();
+                return this.unexpected();
           node = this.startNode();
           this.next();
           node.argument = this.parseExpression();
@@ -566,7 +566,6 @@ export default class ExpressionParser extends LValParser {
         }
 
       default:
-        debugger;
         throw this.unexpected();
     }
   }
