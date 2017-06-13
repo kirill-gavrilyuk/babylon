@@ -492,6 +492,7 @@ export default class StatementParser extends ExpressionParser {
   parseBlockBody(node: N.BlockStatementLike, allowDirectives: ?boolean, topLevel: boolean, end: TokenType): void {
     const body = node.body = [];
     const directives = node.directives = [];
+    const start = this.state.start;
 
     let parsedNonDirective = false;
     let oldStrict;
@@ -525,10 +526,11 @@ export default class StatementParser extends ExpressionParser {
     }
 
     if (this.state.inDoExpression) {
-      if (body.length === 0)
-        this.unexpected(this.state.start, "DoExpression's body can not be empty");
-
       const nonEmptyStatements = body.filter((statement) => statement.type !== "EmptyStatement");
+
+      if (nonEmptyStatements.length === 0)
+        this.unexpected(start, "DoExpression's body can not be empty");
+
       const lastStatement = nonEmptyStatements[nonEmptyStatements.length - 1];
       if (lastStatement.type !== "ExpressionStatement")
         this.unexpected(lastStatement.start, "DoExpression's body should end with expression");
