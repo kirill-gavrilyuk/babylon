@@ -378,6 +378,12 @@ export default class Tokenizer {
       size = 2;
     }
 
+    if (code === 60 && next === 45) {
+      // <-
+      size = 2;
+      return this.finishOp(tt.bind, size);
+    }
+
     return this.finishOp(tt.relational, size);
   }
 

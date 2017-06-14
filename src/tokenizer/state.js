@@ -15,12 +15,13 @@ export default class State {
     this.inMethod =
       this.inFunction =
       this.inGenerator =
+      this.inDoExpression =
       this.inAsync =
       this.inPropertyName =
       this.inType =
       this.inClassProperty =
       this.noAnonFunctionType =
-        false;
+      false;
 
     this.labels = [];
 
@@ -69,6 +70,7 @@ export default class State {
 
   // Flags to track whether we are in a function, a generator.
   inFunction: boolean;
+  inDoExpression: boolean;
   inGenerator: boolean;
   inMethod: boolean;
   inAsync: boolean;

@@ -64,65 +64,67 @@ pp.parseStatement = function (declaration, topLevel) {
   // Most types of statements are recognized by the keyword they
   // start with. Many are trivial to parse, some require a bit of
   // complexity.
+  if (starttype === tt.semi)
+    return this.parseEmptyStatement(node);
 
-  switch (starttype) {
-    case tt._break: case tt._continue: return this.parseBreakContinueStatement(node, starttype.keyword);
-    case tt._debugger: return this.parseDebuggerStatement(node);
-    case tt._do: return this.parseDoStatement(node);
-    case tt._for: return this.parseForStatement(node);
-    case tt._function:
-      if (!declaration) this.unexpected();
-      return this.parseFunctionStatement(node);
+  if (!this.state.inDoExpression)
+    switch (starttype) {
+      case tt._break: case tt._continue: return this.parseBreakContinueStatement(node, starttype.keyword);
+      case tt._debugger: return this.parseDebuggerStatement(node);
+      case tt._do: return this.parseDoStatement(node);
+      case tt._for: return this.parseForStatement(node);
+      case tt._function:
+        if (!declaration) this.unexpected();
+        return this.parseFunctionStatement(node);
 
-    case tt._class:
-      if (!declaration) this.unexpected();
-      return this.parseClass(node, true);
+      case tt._class:
+        if (!declaration) this.unexpected();
+        return this.parseClass(node, true);
 
-    case tt._if: return this.parseIfStatement(node);
-    case tt._return: return this.parseReturnStatement(node);
-    case tt._switch: return this.parseSwitchStatement(node);
-    case tt._throw: return this.parseThrowStatement(node);
-    case tt._try: return this.parseTryStatement(node);
+      case tt._if: return this.parseIfStatement(node);
+      case tt._return: return this.parseReturnStatement(node);
+      case tt._switch: return this.parseSwitchStatement(node);
+      case tt._throw: return this.parseThrowStatement(node);
+      case tt._try: return this.parseTryStatement(node);
 
-    case tt._let:
-    case tt._const:
-      if (!declaration) this.unexpected(); // NOTE: falls through to _var
+      case tt._let:
+      case tt._const:
+        if (!declaration) this.unexpected(); // NOTE: falls through to _var
 
-    case tt._var:
-      return this.parseVarStatement(node, starttype);
+      case tt._var:
+        return this.parseVarStatement(node, starttype);
 
-    case tt._while: return this.parseWhileStatement(node);
-    case tt._with: return this.parseWithStatement(node);
-    case tt.braceL: return this.parseBlock();
-    case tt.semi: return this.parseEmptyStatement(node);
-    case tt._export:
-    case tt._import:
-      if (this.hasPlugin("dynamicImport") && this.lookahead().type === tt.parenL) break;
+      case tt._while: return this.parseWhileStatement(node);
+      case tt._with: return this.parseWithStatement(node);
+      case tt.braceL: return this.parseBlock();
+      case tt._export:
+      case tt._import:
+        if (this.hasPlugin("dynamicImport") && this.lookahead().type === tt.parenL) break;
 
-      if (!this.options.allowImportExportEverywhere) {
-        if (!topLevel) {
-          this.raise(this.state.start, "'import' and 'export' may only appear at the top level");
+        if (!this.options.allowImportExportEverywhere) {
+          if (!topLevel) {
+            this.raise(this.state.start, "'import' and 'export' may only appear at the top level");
+          }
+
+          if (!this.inModule) {
+            this.raise(this.state.start, "'import' and 'export' may appear only with 'sourceType: module'");
+          }
         }
+        return starttype === tt._import ? this.parseImport(node) : this.parseExport(node);
 
-        if (!this.inModule) {
-          this.raise(this.state.start, "'import' and 'export' may appear only with 'sourceType: module'");
+      case tt.name:
+        if (this.state.value === "async") {
+          // peek ahead and see if next token is a function
+          const state = this.state.clone();
+          this.next();
+          if (this.match(tt._function) && !this.canInsertSemicolon()) {
+            this.expect(tt._function);
+            return this.parseFunction(node, true, false, true);
+          } else {
+            this.state = state;
+          }
         }
-      }
-      return starttype === tt._import ? this.parseImport(node) : this.parseExport(node);
-
-    case tt.name:
-      if (this.state.value === "async") {
-        // peek ahead and see if next token is a function
-        const state = this.state.clone();
-        this.next();
-        if (this.match(tt._function) && !this.canInsertSemicolon()) {
-          this.expect(tt._function);
-          return this.parseFunction(node, true, false, true);
-        } else {
-          this.state = state;
-        }
-      }
-  }
+    }
 
   // If the statement does not start with a statement keyword or a
   // brace, it's an ExpressionStatement or LabeledStatement. We
@@ -131,6 +133,18 @@ pp.parseStatement = function (declaration, topLevel) {
   // Identifier node, we switch to interpreting it as a label.
   const maybeName = this.state.value;
   const expr = this.parseExpression();
+
+  if (this.state.type.isBind) {
+    if (expr.type !== "Identifier" || !this.state.inDoExpression)
+      return this.unexpected();
+
+    const node = this.startNode();
+    node.operator = this.state.value;
+    node.left = expr;
+    this.next();
+    node.right = this.parseExpression();
+    return this.finishNode(node, "MBindStatement");
+  }
 
   if (starttype === tt.name && expr.type === "Identifier" && this.eat(tt.colon)) {
     return this.parseLabeledStatement(node, maybeName, expr);
@@ -289,7 +303,7 @@ pp.parseIfStatement = function (node) {
 };
 
 pp.parseReturnStatement = function (node) {
-  if (!this.state.inFunction && !this.options.allowReturnOutsideFunction) {
+  if ((!this.state.inFunction && !this.options.allowReturnOutsideFunction) && !this.state.inDoExpression) {
     this.raise(this.state.start, "'return' outside of function");
   }
 
@@ -472,6 +486,7 @@ pp.isValidDirective = function (stmt) {
 pp.parseBlockBody = function (node, allowDirectives, topLevel, end) {
   node.body = [];
   node.directives = [];
+  const start = this.state.start;
 
   let parsedNonDirective = false;
   let oldStrict;
@@ -502,6 +517,17 @@ pp.parseBlockBody = function (node, allowDirectives, topLevel, end) {
 
     parsedNonDirective = true;
     node.body.push(stmt);
+  }
+
+  if (this.state.inDoExpression) {
+    const nonEmptyStatements = node.body.filter((statement) => statement.type !== "EmptyStatement");
+
+    if (nonEmptyStatements.length === 0)
+      this.unexpected(start, "DoExpression's body can not be empty");
+
+    const lastStatement = nonEmptyStatements[nonEmptyStatements.length - 1];
+    if (lastStatement.type !== "ExpressionStatement")
+      this.unexpected(lastStatement.start, "DoExpression's body should end with expression");
   }
 
   if (oldStrict === false) {

@@ -111,6 +111,10 @@ pp.parseMaybeAssign = function (noIn, refShorthandDefaultPos, afterLeftParse, re
   let left = this.parseMaybeConditional(noIn, refShorthandDefaultPos, refNeedsArrowPos);
   if (afterLeftParse) left = afterLeftParse.call(this, left, startPos, startLoc);
   if (this.state.type.isAssign) {
+    // TODO: think twice!
+    if (this.state.inDoExpression)
+      return this.unexpected();
+
     const node = this.startNodeAt(startPos, startLoc);
     node.operator = this.state.value;
     node.left = this.match(tt.eq) ? this.toAssignable(left, undefined, "assignment expression") : left;
@@ -381,6 +385,25 @@ pp.parseExprAtom = function (refShorthandDefaultPos) {
   let node;
 
   switch (this.state.type) {
+    case tt._do:
+      node = this.startNode();
+      this.next();
+      node.monad = this.parseExpression();
+      const oldInDoExpression = this.state.inDoExpression;
+      this.state.inDoExpression = true;
+      //node.body = this.parseBlock();
+      node.body = this.parseBlock(false);
+      this.state.inDoExpression = oldInDoExpression;
+      return this.finishNode(node, "DoExpression");
+
+    case tt._return:
+      if (!this.state.inDoExpression)
+        return this.unexpected();
+      node = this.startNode();
+      this.next();
+      node.argument = this.parseExpression();
+      return this.finishNode(node, "ReturnExpression");
+
     case tt._super:
       if (
           !this.state.inMethod &&
@@ -444,19 +467,19 @@ pp.parseExprAtom = function (refShorthandDefaultPos) {
 
       return id;
 
-    case tt._do:
-      if (this.hasPlugin("doExpressions")) {
-        const node = this.startNode();
-        this.next();
-        const oldInFunction = this.state.inFunction;
-        const oldLabels = this.state.labels;
-        this.state.labels = [];
-        this.state.inFunction = false;
-        node.body = this.parseBlock(false, true);
-        this.state.inFunction = oldInFunction;
-        this.state.labels = oldLabels;
-        return this.finishNode(node, "DoExpression");
-      }
+//    case tt._do:
+//      if (this.hasPlugin("doExpressions")) {
+//        const node = this.startNode();
+//        this.next();
+//        const oldInFunction = this.state.inFunction;
+//        const oldLabels = this.state.labels;
+//        this.state.labels = [];
+//        this.state.inFunction = false;
+//        node.body = this.parseBlock(false, true);
+//        this.state.inFunction = oldInFunction;
+//        this.state.labels = oldLabels;
+//        return this.finishNode(node, "DoExpression");
+//      }
 
     case tt.regexp:
       const value = this.state.value;
@@ -983,13 +1006,16 @@ pp.parseFunctionBody = function (node, allowExpression) {
   } else {
     // Start a new scope with regard to labels and the `inFunction`
     // flag (restore them to their old value afterwards).
+    const oldInDoExpression = this.state.inDoExpression;
     const oldInFunc = this.state.inFunction;
     const oldInGen = this.state.inGenerator;
     const oldLabels = this.state.labels;
     this.state.inFunction = true; this.state.inGenerator = node.generator; this.state.labels = [];
+    this.state.inDoExpression = false;
     node.body = this.parseBlock(true);
     node.expression = false;
     this.state.inFunction = oldInFunc; this.state.inGenerator = oldInGen; this.state.labels = oldLabels;
+    this.state.inDoExpression = oldInDoExpression;
   }
   this.state.inAsync = oldInAsync;
 
