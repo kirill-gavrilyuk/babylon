@@ -111,9 +111,8 @@ pp.parseMaybeAssign = function (noIn, refShorthandDefaultPos, afterLeftParse, re
   let left = this.parseMaybeConditional(noIn, refShorthandDefaultPos, refNeedsArrowPos);
   if (afterLeftParse) left = afterLeftParse.call(this, left, startPos, startLoc);
   if (this.state.type.isAssign) {
-    // TODO: think twice!
     if (this.state.inDoExpression)
-      return this.unexpected();
+        return left;
 
     const node = this.startNodeAt(startPos, startLoc);
     node.operator = this.state.value;
@@ -396,13 +395,13 @@ pp.parseExprAtom = function (refShorthandDefaultPos) {
       this.state.inDoExpression = oldInDoExpression;
       return this.finishNode(node, "DoExpression");
 
-    case tt._return:
-      if (!this.state.inDoExpression)
-        return this.unexpected();
-      node = this.startNode();
-      this.next();
-      node.argument = this.parseExpression();
-      return this.finishNode(node, "ReturnExpression");
+//    case tt._return:
+//      if (!this.state.inDoExpression)
+//        return this.unexpected();
+//      node = this.startNode();
+//      this.next();
+//      node.argument = this.parseExpression();
+//      return this.finishNode(node, "ReturnExpression");
 
     case tt._super:
       if (

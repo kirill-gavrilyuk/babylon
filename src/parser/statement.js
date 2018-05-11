@@ -134,7 +134,10 @@ pp.parseStatement = function (declaration, topLevel) {
   const maybeName = this.state.value;
   const expr = this.parseExpression();
 
-  if (this.state.type.isBind) {
+
+  if (this.state.type.isBind || this.state.type.isAssign) {
+    const isBind = this.state.type.isBind;
+
     if (expr.type !== "Identifier" || !this.state.inDoExpression)
       return this.unexpected();
 
@@ -143,7 +146,7 @@ pp.parseStatement = function (declaration, topLevel) {
     node.left = expr;
     this.next();
     node.right = this.parseExpression();
-    return this.finishNode(node, "MBindStatement");
+    return this.finishNode(node, isBind ? "MBindStatement" : "MAssignmentStatement");
   }
 
   if (starttype === tt.name && expr.type === "Identifier" && this.eat(tt.colon)) {
